@@ -41,13 +41,16 @@ impl Bucket {
         let j = self
             .next
             .as_ref()
-            .and_then(|x| id::lowest_bit(&x.as_ref().borrow().id).and_then(|x| Some(x + 1)))
+            .and_then(|x| id::lowest_bit(&x.borrow().id).and_then(|x| Some(x + 1)))
             .unwrap_or(1);
         let pos = usize::max(i, j);
 
         let mut arr = self.id.id_clone();
         arr[pos / 8] = arr[pos / 8] | (1 << (8 - pos % 8));
-        let mut bucket = Bucket::new(NodeID::wrap(arr), self.next.clone());
+        let mut bucket = Bucket::new(
+            NodeID::wrap(arr),
+            self.next.as_ref().and_then(|x| Some(Rc::clone(x))),
+        );
 
         let mut self_nodes = self.nodes.as_mut().expect("转移 node");
         let mut i = 0;
@@ -66,9 +69,9 @@ impl Bucket {
     #[allow(unused)]
     pub fn insert_node(&mut self, node: Node) {
         if let Some(v) = &self.next {
-            let mut nb = v.as_ref().borrow_mut();
-            if id::cmp(&node.id, &nb.id) >= 0 {
-                nb.insert_node(node);
+            let nb = Rc::clone(v);
+            if id::cmp(&node.id, &nb.borrow().id) >= 0 {
+                nb.borrow_mut().insert_node(node);
             }
             return;
         }
@@ -81,13 +84,15 @@ impl Bucket {
 
                 if v.len() + 1 > BUCKET_MAX_SIZE {
                     self.split_self();
-                    let b = Rc::clone(&self.next.as_ref().unwrap());
 
-                    if id::cmp(&node.id, &b.borrow().id) < 0 {
-                        b.borrow_mut().insert_node(node);
+                    if let Some(next) = &self.next {
+                        let b = Rc::clone(next);
+                        if id::cmp(&node.id, &b.borrow().id) < 0 {
+                            b.borrow_mut().insert_node(node);
+                        }
                     } else {
                         self.insert_node(node);
-                    };
+                    }
                 } else {
                     v.push(node);
                 }
@@ -102,6 +107,7 @@ impl Bucket {
 #[cfg(test)]
 mod test {
     use crate::bucket::Bucket;
+    use crate::bucket::Rc;
     use crate::node::id::{self, NODE_ID_LENGTH};
     use crate::node::Node;
     use crate::NodeID;
@@ -119,32 +125,38 @@ mod test {
 
         assert_ne!(bucket.next, None);
 
-        let bucket_ref = RefCell::new(bucket);
-        let mut current_bucket = &bucket_ref;
-        let cb = current_bucket.borrow();
+        let bucket_ref = Rc::new(RefCell::new(bucket));
+        let mut current_bucket = bucket_ref;
 
         loop {
             assert_eq!(
-                cb.nodes.as_ref().and_then(|v| {
-                    let res = v.iter().all(|n| {
-                        cb.next
-                            .as_ref()
-                            .and_then(|nb| {
-                                return Some(id::cmp(&n.id, &nb.as_ref().borrow().id) < 0);
-                            })
-                            .unwrap_or(false)
-                    });
+                Rc::clone(&current_bucket)
+                    .borrow()
+                    .nodes
+                    .as_ref()
+                    .and_then(|v| {
+                        let res = v.iter().all(|n| {
+                            current_bucket
+                                .borrow()
+                                .next
+                                .as_ref()
+                                .and_then(|nb| Some(id::cmp(&n.id, &nb.as_ref().borrow().id) < 0))
+                                .unwrap_or(false)
+                        });
 
-                    return Some(v.len() <= 0 || res);
-                }),
+                        return Some(v.len() <= 0 || res);
+                    }),
                 Some(true)
             );
 
-            unsafe {
-                match &(*current_bucket.as_ptr()).next {
-                    Some(b) => current_bucket = b.as_ref(),
-                    None => break,
-                }
+            match Rc::clone(&current_bucket)
+                .borrow()
+                .next
+                .as_ref()
+                .and_then(|b| Some(Rc::clone(&b)))
+            {
+                Some(b) => current_bucket = b,
+                None => break,
             }
         }
     }
