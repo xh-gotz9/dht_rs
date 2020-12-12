@@ -1,71 +1,24 @@
-use core::cell::Cell;
-use id::{kademila::lowest_bit, NodeID};
-use std::{
-    cell::{RefCell, RefMut},
-    rc::Rc,
-};
+use crate::NodeID;
+use std::time::SystemTime;
 
-struct Node {
-    id: NodeID,
+#[derive(Debug, Eq, PartialEq)]
+pub struct Node {
+    pub id: NodeID,
+    last_change: SystemTime,
 }
 
-/// 一个 Bucket 中仅可容纳 8 个 Node
-const BUCKET_MAX_SIZE: usize = 8;
-
-struct Bucket {
-    id: NodeID,
-    next: Option<Rc<RefCell<Bucket>>>,
-    nodes: Option<Vec<Node>>,
-}
-
-impl Bucket {
-    pub fn new(id: NodeID, next: Option<Rc<RefCell<Bucket>>>) -> Bucket {
-        Bucket {
-            id: id,
-            next: next,
-            nodes: None,
-        }
+impl Node {
+    #[allow(unused)]
+    pub fn new(id: NodeID, last_change: SystemTime) -> Self {
+        Self { id, last_change }
     }
 
-    fn split_self(&mut self) {
-        let i = lowest_bit(&self.id).and_then(|x| Some(x + 1)).unwrap_or(0);
-        let j = self
-            .next
-            .as_ref()
-            .and_then(|x| lowest_bit(&x.as_ref().borrow().id).and_then(|x| Some(x + 1)))
-            .unwrap_or(0);
-        let pos = usize::max(i, j);
-
-        let mut arr = self.id.id_clone();
-        arr[pos / 8] = arr[pos / 8] & (1 << (pos % 8));
-
-        let node = NodeID::wrap(arr);
-        let bucket = Bucket::new(node, self.next.clone());
-
-        // TODO 转移 Node
-
-        self.next = Some(Rc::new(RefCell::new(bucket)));
-    }
-
-    pub fn insert_node(&mut self, node: Node) {
-        match &mut self.nodes {
-            Some(v) => {
-                if v.len() + 1 > BUCKET_MAX_SIZE {
-                    self.split_self();
-                    let b = Rc::clone(&self.next.as_ref().unwrap());
-                    if id::kademila::cmp(&node.id, &b.borrow_mut().id) < 0 {
-                        b.borrow_mut().insert_node(node);
-                    } else {
-                        self.insert_node(node);
-                    };
-                } else {
-                    v.push(node);
-                }
-            }
-            None => {
-                self.nodes = Some(vec![node]);
-            }
-        }
+    #[allow(unused)]
+    pub fn is_good_node(&self) -> bool {
+        self.last_change
+            .elapsed()
+            .and_then(|x| Ok(x.as_secs() < 60 * 15))
+            .unwrap_or(false)
     }
 }
 
@@ -73,8 +26,9 @@ pub mod id {
     use rand::prelude::*;
     use std::fmt::{self, Debug, Result};
 
-    const NODE_ID_LENGTH: usize = 20;
+    pub const NODE_ID_LENGTH: usize = 20;
 
+    #[derive(Eq, PartialEq)]
     pub struct NodeID {
         val: [u8; 20],
     }
@@ -108,66 +62,67 @@ pub mod id {
             return NodeID { val: data };
         }
 
+        #[allow(unused)]
         pub fn id_clone(&self) -> [u8; NODE_ID_LENGTH] {
             self.val.clone()
         }
     }
 
-    pub mod kademila {
-        use crate::node::id::NodeID;
-        use crate::node::id::NODE_ID_LENGTH;
-
-        /// 比较两个节点的大小
-        /// ## Return
-        /// - 0 - 相等
-        /// - 正数 - Self 更大
-        /// - 负数 - Self 更小
-        #[allow(unused)]
-        pub fn cmp(id1: &NodeID, id2: &NodeID) -> i32 {
-            let mut count = 0;
-            while id1.val[count] == id2.val[count] {
-                count += 1;
-            }
-            if count >= 20 {
-                return 0;
-            } else {
-                return (id1.val[count] - id2.val[count]).into();
-            }
+    /// 比较两个节点的大小
+    /// ## Return
+    /// - 0 - 相等
+    /// - 正数 - Self 更大
+    /// - 负数 - Self 更小
+    #[allow(unused)]
+    pub fn cmp(id1: &NodeID, id2: &NodeID) -> i32 {
+        let mut count = 0;
+        while id1.val[count] == id2.val[count] {
+            count += 1;
         }
-        #[allow(unused)]
-        pub fn mid(id1: &NodeID, id2: &NodeID) -> NodeID {
-            let mut node = NodeID::new();
-            let mut b: u16 = 0;
-            for i in (0..NODE_ID_LENGTH).rev() {
-                let mid = id1.val[i] as u16 + id2.val[i] as u16 + b;
-                node.val[i] = mid as u8;
-                b = mid >> 8;
-            }
-            for i in 0..NODE_ID_LENGTH {
-                let tmp = (node.val[i] as u16 + (b << 8));
-                node.val[i] = (tmp / 2) as u8;
-                b = tmp & 1;
-            }
-            return node;
-        }
-
-        pub fn lowest_bit(node: &NodeID) -> Option<usize> {
-            for i in (0..NODE_ID_LENGTH).rev() {
-                let v = node.val[i];
-                let mut f: u8 = 1;
-                for j in (0..8).rev() {
-                    if v & f != 0 {
-                        return Some(i * 8 + j);
-                    }
-                    f <<= 1;
-                }
-            }
-            return None;
+        if count >= 20 {
+            return 0;
+        } else {
+            return (id1.val[count] as i32 - id2.val[count] as i32) as i32;
         }
     }
+
+    #[allow(unused)]
+    pub fn mid(id1: &NodeID, id2: &NodeID) -> NodeID {
+        let mut node = NodeID::new();
+        let mut b: u16 = 0;
+        for i in (0..NODE_ID_LENGTH).rev() {
+            let mid = id1.val[i] as u16 + id2.val[i] as u16 + b;
+            node.val[i] = mid as u8;
+            b = mid >> 8;
+        }
+        for i in 0..NODE_ID_LENGTH {
+            let tmp = (node.val[i] as u16 + (b << 8));
+            node.val[i] = (tmp / 2) as u8;
+            b = tmp & 1;
+        }
+        return node;
+    }
+
+    #[allow(unused)]
+    pub fn lowest_bit(node: &NodeID) -> Option<usize> {
+        let mut ret: Option<usize> = None;
+        for i in (0..NODE_ID_LENGTH).rev() {
+            let v = node.val[i];
+            let mut f: u8 = 1;
+            for j in (0..8).rev() {
+                if v & f != 0 {
+                    ret = Some(i * 8 + j);
+                    break;
+                }
+                f <<= 1;
+            }
+        }
+        return ret;
+    }
+
     #[cfg(test)]
     mod test {
-        use crate::node::id::kademila::mid;
+        use crate::node::id::mid;
 
         #[test]
         fn rand_id_test() {
