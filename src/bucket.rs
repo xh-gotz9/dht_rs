@@ -135,18 +135,22 @@ mod test {
                     .nodes
                     .as_ref()
                     .and_then(|v| {
-                        let res = v.iter().all(|n| {
-                            current_bucket
-                                .borrow()
-                                .next
-                                .as_ref()
-                                .and_then(|nb| Some(id::cmp(&n.id, &nb.as_ref().borrow().id) < 0))
-                                .unwrap_or(false)
-                        });
-
-                        return Some(v.len() <= 0 || res);
-                    }),
-                Some(true)
+                        return Some(
+                            v.len() == 0
+                                || v.iter().all(|n| {
+                                    current_bucket
+                                        .borrow()
+                                        .next
+                                        .as_ref()
+                                        .and_then(|nb| {
+                                            Some(id::cmp(&n.id, &nb.as_ref().borrow().id) < 0)
+                                        })
+                                        .unwrap_or(true) // if current is last bucket,
+                                }),
+                        );
+                    })
+                    .unwrap_or(true), // if `nodes` is None, pass
+                true
             );
 
             match Rc::clone(&current_bucket)
