@@ -30,7 +30,7 @@ pub mod id {
 
     #[derive(Eq, PartialEq)]
     pub struct NodeID {
-        val: [u8; 20],
+        val: [u8; NODE_ID_LENGTH],
     }
 
     impl Debug for NodeID {
@@ -38,6 +38,12 @@ pub mod id {
             f.debug_struct("NodeID")
                 .field("val", &hex::encode_upper(&self.val))
                 .finish()
+        }
+    }
+
+    impl ToString for NodeID {
+        fn to_string(&self) -> std::string::String {
+            hex::encode(self.val)
         }
     }
 
@@ -51,6 +57,7 @@ pub mod id {
         pub fn wrap(val: [u8; 20]) -> NodeID {
             return NodeID { val: val };
         }
+
         #[allow(unused)]
         pub fn rand() -> NodeID {
             let mut data = [0; NODE_ID_LENGTH];
