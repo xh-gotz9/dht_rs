@@ -73,6 +73,10 @@ pub mod id {
         pub fn id_clone(&self) -> [u8; NODE_ID_LENGTH] {
             self.val.clone()
         }
+
+        pub fn raw_id(&mut self) -> String {
+            unsafe { String::from_raw_parts(self.val.as_mut_ptr(), self.val.len(), self.val.len()) }
+        }
     }
 
     /// 比较两个节点的大小
