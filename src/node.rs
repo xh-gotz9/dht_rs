@@ -74,8 +74,8 @@ pub mod id {
             self.val.clone()
         }
 
-        pub fn raw_id(&mut self) -> String {
-            unsafe { String::from_raw_parts(self.val.as_mut_ptr(), self.val.len(), self.val.len()) }
+        pub fn raw_id(&mut self) -> Vec<u8> {
+            self.val.to_vec()
         }
     }
 

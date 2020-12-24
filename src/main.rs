@@ -19,10 +19,13 @@ fn main() -> std::io::Result<()> {
     let t: u16 = rand::random();
     v.insert(
         String::from("t"),
-        BData::BString(hex::encode([(t >> 8) as u8, t as u8])),
+        BData::BString(vec![(t >> 8) as u8, t as u8]),
     );
-    v.insert(String::from("y"), BData::BString(String::from("q")));
-    v.insert(String::from("q"), BData::BString(String::from("get_peers")));
+    v.insert(String::from("y"), BData::BString(vec![b'q']));
+    v.insert(
+        String::from("q"),
+        BData::BString("get_peers".as_bytes().to_vec()),
+    );
 
     // "a" args
     let mut args = BTreeMap::new();
@@ -43,10 +46,10 @@ fn main() -> std::io::Result<()> {
         DHT_BOOT_NODE_PORT,
     );
 
-    println!("request:\n{}", hex::encode(data.as_bytes()));
+    println!("request:\n{}", hex::encode(&data));
 
     let socket = UdpSocket::bind("0.0.0.0:9000")?;
-    socket.send_to(data.as_bytes(), node_addr)?;
+    socket.send_to(data.as_ref(), node_addr)?;
 
     let mut buffer = [0u8; 2048];
     let mut count = 0;
@@ -57,8 +60,8 @@ fn main() -> std::io::Result<()> {
         if addr.eq(&SocketAddr::V4(node_addr)) {
             let response =
                 String::from_utf8(buffer.to_vec()).expect("response parse string failed");
-            let res =
-                fraux_rs::parse(&response).unwrap_or(BData::BString("parse failed".to_string()));
+            let res = fraux_rs::parse(&response)
+                .unwrap_or(BData::BString("parse failed".as_bytes().to_vec()));
             println!("response:\n{:?}", res);
             count += 1;
         }
