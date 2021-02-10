@@ -1,18 +1,23 @@
+use std::{net::SocketAddr, time::SystemTime};
+
 pub use id::NodeID;
 
-use std::time::SystemTime;
-
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Node {
     pub id: NodeID,
+    addr: SocketAddr,
     last_change: SystemTime,
 }
 
 impl Node {
     #[allow(unused)]
-    pub fn new(id: NodeID, last_change: SystemTime) -> Self {
-        Self { id, last_change }
+    pub fn new(id: NodeID, addr: SocketAddr, last_change: SystemTime) -> Self {
+        Self {
+            id,
+            addr,
+            last_change,
         }
+    }
 
     #[allow(unused)]
     pub fn is_good_node(&self) -> bool {
