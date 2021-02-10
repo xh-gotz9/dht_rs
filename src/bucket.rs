@@ -110,14 +110,24 @@ mod test {
     use crate::node::id::{self, NODE_ID_LENGTH};
     use crate::node::{Node, NodeID};
     use core::cell::RefCell;
-    use std::time::SystemTime;
+    use std::{
+        net::{SocketAddr, SocketAddrV4},
+        time::SystemTime,
+    };
 
     #[test]
     fn init_test() {
         let mut bucket = Bucket::new(NodeID::wrap([0; NODE_ID_LENGTH]), None);
 
         for _i in 0..9 {
-            let node = Node::new(NodeID::rand(), SystemTime::now());
+            let node = Node::new(
+                NodeID::rand(),
+                SocketAddr::V4(SocketAddrV4::new(
+                    "127.0.0.1".parse().expect("ip parse error"),
+                    8080,
+                )),
+                SystemTime::now(),
+            );
             bucket.insert_node(node);
         }
 
