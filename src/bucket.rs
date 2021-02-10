@@ -1,5 +1,4 @@
-use crate::node::id;
-use crate::{node::Node, NodeID};
+use crate::node::{self, Node, NodeID};
 use std::cell::RefCell;
 use std::fmt::{self, Result};
 use std::rc::Rc;
@@ -35,13 +34,13 @@ impl Bucket {
 
     #[allow(unused)]
     fn split_self(&mut self) {
-        let i = id::lowest_bit(&self.id)
+        let i = node::id::lowest_bit(&self.id)
             .and_then(|x| Some(x + 1))
             .unwrap_or(1);
         let j = self
             .next
             .as_ref()
-            .and_then(|x| id::lowest_bit(&x.borrow().id).and_then(|x| Some(x + 1)))
+            .and_then(|x| node::id::lowest_bit(&x.borrow().id).and_then(|x| Some(x + 1)))
             .unwrap_or(1);
         let pos = usize::max(i, j);
 
@@ -55,7 +54,7 @@ impl Bucket {
         let mut self_nodes = self.nodes.as_mut().expect("转移 node");
         let mut i = 0;
         while i != self_nodes.len() {
-            if id::cmp(&self_nodes[i].id, &bucket.id) >= 0 {
+            if node::id::cmp(&self_nodes[i].id, &bucket.id) >= 0 {
                 let val = self_nodes.remove(i);
                 bucket.insert_node(val);
             } else {
@@ -70,7 +69,7 @@ impl Bucket {
     pub fn insert_node(&mut self, node: Node) {
         if let Some(v) = &self.next {
             let nb = Rc::clone(v);
-            if id::cmp(&node.id, &nb.borrow().id) >= 0 {
+            if node::id::cmp(&node.id, &nb.borrow().id) >= 0 {
                 nb.borrow_mut().insert_node(node);
             }
             return;
@@ -87,7 +86,7 @@ impl Bucket {
 
                     if let Some(next) = &self.next {
                         let b = Rc::clone(next);
-                        if id::cmp(&node.id, &b.borrow().id) < 0 {
+                        if node::id::cmp(&node.id, &b.borrow().id) < 0 {
                             b.borrow_mut().insert_node(node);
                         }
                     } else {
@@ -109,8 +108,7 @@ mod test {
     use crate::bucket::Bucket;
     use crate::bucket::Rc;
     use crate::node::id::{self, NODE_ID_LENGTH};
-    use crate::node::Node;
-    use crate::NodeID;
+    use crate::node::{Node, NodeID};
     use core::cell::RefCell;
     use std::time::SystemTime;
 

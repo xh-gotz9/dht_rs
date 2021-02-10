@@ -1,11 +1,7 @@
-mod bucket;
-mod node;
-
+use dht_rs::node::NodeID;
 use fraux_rs::BData;
 use std::net::{SocketAddr, SocketAddrV4, UdpSocket};
 use std::{collections::BTreeMap, rc::Rc};
-
-use node::id::NodeID;
 
 // router.utorrent.com
 const DHT_BOOT_NODE_IP: &str = "135.216.109.124";
@@ -63,8 +59,8 @@ fn main() -> std::io::Result<()> {
             let res = fraux_rs::parse(&response)
                 .unwrap_or(BData::BString("parse failed".as_bytes().to_vec()));
             println!("response:\n{:?}", res);
-            count += 1;
-        }
+        count += 1;
+    }
     }
 
     Ok(())

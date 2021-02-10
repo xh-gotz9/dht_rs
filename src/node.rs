@@ -1,4 +1,5 @@
-use crate::NodeID;
+pub use id::NodeID;
+
 use std::time::SystemTime;
 
 #[derive(Debug, Eq, PartialEq)]
@@ -11,7 +12,7 @@ impl Node {
     #[allow(unused)]
     pub fn new(id: NodeID, last_change: SystemTime) -> Self {
         Self { id, last_change }
-    }
+        }
 
     #[allow(unused)]
     pub fn is_good_node(&self) -> bool {
@@ -23,61 +24,10 @@ impl Node {
 }
 
 pub mod id {
-    use rand::prelude::*;
-    use std::fmt::{self, Debug, Result};
 
-    pub const NODE_ID_LENGTH: usize = 20;
+    pub const NODE_ID_LENGTH: usize = crate::hash::HASH_LENGTH;
 
-    #[derive(Eq, PartialEq)]
-    pub struct NodeID {
-        val: [u8; NODE_ID_LENGTH],
-    }
-
-    impl Debug for NodeID {
-        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result {
-            f.debug_struct("NodeID")
-                .field("val", &hex::encode_upper(&self.val))
-                .finish()
-        }
-    }
-
-    impl ToString for NodeID {
-        fn to_string(&self) -> std::string::String {
-            hex::encode(self.val)
-        }
-    }
-
-    impl NodeID {
-        #[allow(unused)]
-        pub fn new() -> NodeID {
-            let data: [u8; NODE_ID_LENGTH] = [0; NODE_ID_LENGTH];
-            return NodeID { val: data };
-        }
-        #[allow(unused)]
-        pub fn wrap(val: [u8; 20]) -> NodeID {
-            return NodeID { val: val };
-        }
-
-        #[allow(unused)]
-        pub fn rand() -> NodeID {
-            let mut data = [0; NODE_ID_LENGTH];
-            let mut rng = rand::thread_rng();
-            for i in 0..20 {
-                let v: u8 = rng.gen();
-                data[i] = v;
-            }
-            return NodeID { val: data };
-        }
-
-        #[allow(unused)]
-        pub fn id_clone(&self) -> [u8; NODE_ID_LENGTH] {
-            self.val.clone()
-        }
-
-        pub fn raw_id(&mut self) -> Vec<u8> {
-            self.val.to_vec()
-        }
-    }
+    pub type NodeID = crate::hash::Hash;
 
     /// 比较两个节点的大小
     /// ## Return
