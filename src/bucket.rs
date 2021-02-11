@@ -10,7 +10,7 @@ const BUCKET_MAX_SIZE: usize = 8;
 pub struct Bucket {
     id: NodeID,
     next: Option<Rc<RefCell<Bucket>>>,
-    nodes: Option<Vec<Node>>,
+    nodes: Option<Vec<Rc<Node>>>,
 }
 
 impl std::fmt::Debug for Bucket {
@@ -56,7 +56,7 @@ impl Bucket {
         while i != self_nodes.len() {
             if node::id::cmp(&self_nodes[i].id, &bucket.id) >= 0 {
                 let val = self_nodes.remove(i);
-                bucket.insert_node(val);
+                bucket._insert_node(val);
             } else {
                 i += 1;
             }
@@ -67,10 +67,15 @@ impl Bucket {
 
     #[allow(unused)]
     pub fn insert_node(&mut self, node: Node) {
+        // TODO 遍历查找 bucket, 移除 _insert_node 中的递归调用
+        self._insert_node(Rc::new(node))
+    }
+    
+    fn _insert_node(&mut self, node: Rc<Node>) {
         if let Some(v) = &self.next {
             let nb = Rc::clone(v);
             if node::id::cmp(&node.id, &nb.borrow().id) >= 0 {
-                nb.borrow_mut().insert_node(node);
+                nb.borrow_mut()._insert_node(node);
             }
             return;
         }
@@ -87,10 +92,10 @@ impl Bucket {
                     if let Some(next) = &self.next {
                         let b = Rc::clone(next);
                         if node::id::cmp(&node.id, &b.borrow().id) < 0 {
-                            b.borrow_mut().insert_node(node);
+                            b.borrow_mut()._insert_node(node);
                         }
                     } else {
-                        self.insert_node(node);
+                        self._insert_node(node);
                     }
                 } else {
                     v.push(node);
