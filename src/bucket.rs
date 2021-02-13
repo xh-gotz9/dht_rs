@@ -32,7 +32,8 @@ impl Bucket {
         }
     }
 
-    #[allow(unused)]
+    /// bucket 链表从大到小 (2^21-1) -> 0
+    /// 较大 ID 值的 bucket 分割时放在链表前部, 便于搜索
     fn split_self(&mut self) {
         let i = node::id::lowest_bit(&self.id)
             .and_then(|x| Some(x + 1))
@@ -44,9 +45,11 @@ impl Bucket {
             .unwrap_or(1);
         let pos = usize::max(i, j);
 
-        let mut arr = self.id.id_clone();
-        arr[pos / 8] = arr[pos / 8] | (1 << (8 - pos % 8));
-        let mut bucket = Bucket::new(
+        let arr = self.id.id_clone();
+        self.id.val[pos / 8] = self.id.val[pos / 8] | (1 << (8 - pos % 8));
+
+        // 新 bucket 放于最后
+        let mut new_bucket = Bucket::new(
             NodeID::wrap(arr),
             self.next.as_ref().and_then(|x| Some(Rc::clone(x))),
         );
@@ -54,15 +57,15 @@ impl Bucket {
         let mut self_nodes = self.nodes.as_mut().expect("转移 node");
         let mut i = 0;
         while i != self_nodes.len() {
-            if node::id::cmp(&self_nodes[i].id, &bucket.id) >= 0 {
+            if node::id::cmp(&self_nodes[i].id, &new_bucket.id) < 0 {
                 let val = self_nodes.remove(i);
-                bucket._insert_node(val);
+                new_bucket._insert_node(val);
             } else {
                 i += 1;
             }
         }
 
-        self.next = Some(Rc::new(RefCell::new(bucket)));
+        self.next = Some(Rc::new(RefCell::new(new_bucket)));
     }
 
     #[allow(unused)]
@@ -74,7 +77,7 @@ impl Bucket {
     fn _insert_node(&mut self, node: Rc<Node>) {
         if let Some(v) = &self.next {
             let nb = Rc::clone(v);
-            if node::id::cmp(&node.id, &nb.borrow().id) >= 0 {
+            if node::id::cmp(&node.id, &nb.borrow().id) <= 0 {
                 nb.borrow_mut()._insert_node(node);
             }
             return;
@@ -89,13 +92,14 @@ impl Bucket {
                 if v.len() + 1 > BUCKET_MAX_SIZE {
                     self.split_self();
 
-                    if let Some(next) = &self.next {
-                        let b = Rc::clone(next);
-                        if node::id::cmp(&node.id, &b.borrow().id) < 0 {
-                            b.borrow_mut()._insert_node(node);
-                        }
-                    } else {
+                    if node::id::cmp(&node.id, &self.id) >= 0 {
                         self._insert_node(node);
+                    } else {
+                        self.next
+                            .as_ref()
+                            .expect("slite failed")
+                            .borrow_mut()
+                            ._insert_node(node);
                     }
                 } else {
                     v.push(node);
@@ -156,7 +160,7 @@ mod test {
                                         .next
                                         .as_ref()
                                         .and_then(|nb| {
-                                            Some(id::cmp(&n.id, &nb.as_ref().borrow().id) < 0)
+                                            Some(id::cmp(&n.id, &nb.as_ref().borrow().id) > 0)
                                         })
                                         .unwrap_or(true) // if current is last bucket,
                                 }),
