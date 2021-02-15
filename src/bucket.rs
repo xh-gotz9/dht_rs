@@ -54,7 +54,7 @@ impl Bucket {
             self.next.as_ref().and_then(|x| Some(Rc::clone(x))),
         );
 
-        let mut self_nodes = self.nodes.as_mut().expect("转移 node");
+        let self_nodes = self.nodes.as_mut().expect("转移 node");
         let mut i = 0;
         while i != self_nodes.len() {
             if node::id::cmp(&self_nodes[i].id, &new_bucket.id) < 0 {
@@ -73,7 +73,7 @@ impl Bucket {
         // TODO 遍历查找 bucket, 移除 _insert_node 中的递归调用
         self._insert_node(Rc::new(node))
     }
-    
+
     fn _insert_node(&mut self, node: Rc<Node>) {
         if let Some(v) = &self.next {
             let nb = Rc::clone(v);
@@ -109,6 +109,14 @@ impl Bucket {
                 self.nodes = Some(vec![node]);
             }
         }
+    }
+
+    pub fn node_id(&self) -> &NodeID {
+        &self.id
+    }
+
+    pub fn next_bucket(&self) -> Option<Rc<RefCell<Bucket>>> {
+        self.next.as_ref().and_then(|rc| Some(Rc::clone(rc)))
     }
 }
 
