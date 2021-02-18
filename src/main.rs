@@ -54,13 +54,13 @@ fn main() -> std::io::Result<()> {
         println!("received data: {} bytes", len);
         let buffer = &buffer[..len];
         if addr.eq(&SocketAddr::V4(node_addr)) {
-            let response =
-                String::from_utf8(buffer.to_vec()).expect("response parse string failed");
-            let res = fraux_rs::parse(&response)
+            let bytes = buffer.to_vec();
+            println!("{}", hex::encode(&bytes));
+            let res = fraux_rs::parse(bytes)
                 .unwrap_or(BData::BString("parse failed".as_bytes().to_vec()));
             println!("response:\n{:?}", res);
-        count += 1;
-    }
+            count += 1;
+        }
     }
 
     Ok(())
