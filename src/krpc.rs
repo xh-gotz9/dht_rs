@@ -148,50 +148,49 @@ pub fn parse_query(dict: Rc<BTreeMap<String, BData>>) -> Option<QueryBody> {
 
             let id = Hash::wrap(id);
 
-            // TODO: parse query body
+            // parse query body
+            match s.as_ref() {
+                "ping" => {
+                    let body = QPing { id };
+                    return Some(QueryBody::Ping(body));
+                }
+                "find_node" => {
+                    let t = addition
+                        .get("id")
+                        .and_then(|s| match s {
+                            BData::Number(_) | BData::List(_) | BData::Dict(_) => None,
+                            BData::BString(v) => Some(v.clone()),
+                        })
+                        .expect("no id");
 
-            if "ping".eq(&s) {
-                let body = QPing { id };
-                return Some(QueryBody::Ping(body));
-            }
+                    let mut target = [0u8; HASH_LENGTH];
+                    target.clone_from_slice(&t.as_slice()[..HASH_LENGTH]);
+                    let target = Hash::wrap(target);
 
-            if "find_node".eq(&s) {
-                let t = addition
-                    .get("id")
-                    .and_then(|s| match s {
-                        BData::Number(_) | BData::List(_) | BData::Dict(_) => None,
-                        BData::BString(v) => Some(v.clone()),
-                    })
-                    .expect("no id");
+                    let body = QFindNode { id, target };
+                    return Some(QueryBody::FindNode(body));
+                }
 
-                let mut target = [0u8; HASH_LENGTH];
-                target.clone_from_slice(&t.as_slice()[..HASH_LENGTH]);
-                let target = Hash::wrap(target);
-
-                let body = QFindNode { id, target };
-                return Some(QueryBody::FindNode(body));
-            }
-
-            if "get_peers".eq(&s) {
-                let info_hash = id.clone();
-                let body = QGetPeers { id, info_hash };
-                return Some(QueryBody::GetPeers(body));
-            }
-
-            if "announce_peers".eq(&s) {
-                let info_hash = id.clone();
-                let token = id.clone().raw_id();
-                let body = QAnnouncePeer {
-                    id,
-                    info_hash,
-                    implied_port: 1,
-                    port: 32,
-                    token,
-                };
-                return Some(QueryBody::AnnouncePeer(body));
+                "get_peers" => {
+                    let info_hash = id.clone();
+                    let body = QGetPeers { id, info_hash };
+                    return Some(QueryBody::GetPeers(body));
+                }
+                "announce_peers" => {
+                    let info_hash = id.clone();
+                    let token = id.clone().raw_id();
+                    let body = QAnnouncePeer {
+                        id,
+                        info_hash,
+                        implied_port: 1,
+                        port: 32,
+                        token,
+                    };
+                    return Some(QueryBody::AnnouncePeer(body));
+                }
+                _ => {}
             }
         }
     }
-
     return None;
 }
