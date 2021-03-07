@@ -41,7 +41,7 @@ impl Bucket {
         let j = self
             .next
             .as_ref()
-            .and_then(|x| node::id::lowest_bit(&x.borrow().id).and_then(|x| Some(x + 1)))
+            .and_then(|x| node::id::lowest_bit(&x.as_ref().borrow().id).and_then(|x| Some(x + 1)))
             .unwrap_or(1);
         let pos = usize::max(i, j);
 
@@ -77,7 +77,7 @@ impl Bucket {
     fn _insert_node(&mut self, node: Rc<Node>) {
         if let Some(v) = &self.next {
             let nb = Rc::clone(v);
-            if node::id::cmp(&node.id, &nb.borrow().id) <= 0 {
+            if node::id::cmp(&node.id, &nb.as_ref().borrow().id) <= 0 {
                 nb.borrow_mut()._insert_node(node);
             }
             return;
@@ -120,7 +120,7 @@ impl Bucket {
     }
 
     pub fn find_node(&self, id: &NodeID) -> Option<Rc<Node>> {
-        if let Some(v) = self.nodes {
+        if let Some(v) = &self.nodes {
             for node in v {
                 if node::id::cmp(id, &node.id) == 0 {
                     return Some(Rc::clone(&node));

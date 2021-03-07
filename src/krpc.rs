@@ -47,32 +47,31 @@ pub struct QFindNode {
 
 #[allow(unused)]
 pub struct RFindNode {
-    id: NodeID,
-    token: Vec<u8>,
-    nodes: Vec<Node>,
+    pub id: NodeID,
+    pub nodes: Vec<Node>,
 }
 
 #[allow(unused)]
 pub struct QGetPeers {
-    id: NodeID,
-    info_hash: Hash,
+    pub id: NodeID,
+    pub info_hash: Hash,
 }
 
 #[allow(unused)]
 pub struct RGetPeers {
-    id: NodeID,
-    token: Vec<u8>,
-    peers: Vec<SocketAddr>,
-    nodes: Vec<Node>,
+    pub id: NodeID,
+    pub token: Vec<u8>,
+    pub peers: Vec<SocketAddr>,
+    pub nodes: Vec<Node>,
 }
 
 #[allow(unused)]
 pub struct QAnnouncePeer {
-    id: NodeID,
-    info_hash: Hash,
-    implied_port: u32,
-    port: u32,
-    token: Vec<u8>,
+    pub id: NodeID,
+    pub info_hash: Hash,
+    pub implied_port: u32,
+    pub port: u32,
+    pub token: Vec<u8>,
 }
 
 pub type RAnonnouncePeer = QPing;
