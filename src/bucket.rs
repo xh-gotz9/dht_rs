@@ -1,7 +1,7 @@
 use crate::node::{self, Node, NodeID};
-use std::cell::RefCell;
 use std::fmt::{self, Result};
 use std::rc::Rc;
+use std::{borrow::Borrow, cell::RefCell};
 
 /// 一个 Bucket 中仅可容纳 8 个 Node
 const BUCKET_MAX_SIZE: usize = 8;
@@ -117,6 +117,17 @@ impl Bucket {
 
     pub fn next_bucket(&self) -> Option<Rc<RefCell<Bucket>>> {
         self.next.as_ref().and_then(|rc| Some(Rc::clone(rc)))
+    }
+
+    pub fn find_node(&self, id: &NodeID) -> Option<Rc<Node>> {
+        if let Some(v) = self.nodes {
+            for node in v {
+                if node::id::cmp(id, &node.id) == 0 {
+                    return Some(Rc::clone(&node));
+                }
+            }
+        }
+        None
     }
 }
 
