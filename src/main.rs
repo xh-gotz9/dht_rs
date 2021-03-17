@@ -8,8 +8,8 @@ const DHT_BOOT_NODE_IP: &str = "135.216.109.124";
 const DHT_BOOT_NODE_PORT: u16 = 8526;
 
 fn main() -> std::io::Result<()> {
-    let mut id = NodeID::rand();
-    let mut target_id = NodeID::rand();
+    let id = NodeID::rand();
+    let target_id = NodeID::rand();
     println!("{:?}", id);
     let mut v = BTreeMap::new();
     let t: u16 = rand::random();

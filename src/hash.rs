@@ -56,7 +56,7 @@ impl Hash {
         self.val.clone()
     }
 
-    pub fn raw_id(&mut self) -> Vec<u8> {
+    pub fn raw_id(&self) -> Vec<u8> {
         self.val.to_vec()
     }
 }
