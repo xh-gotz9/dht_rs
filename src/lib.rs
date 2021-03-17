@@ -29,6 +29,7 @@ impl DHTTable {
     }
 
     /// 根据提供的 id 找到对应的 bucket
+    #[allow(unused)]
     fn search_bucket(&self, id: &NodeID) -> Option<Rc<RefCell<Bucket>>> {
         let mut bu = self.buckets.as_ref().map(Rc::clone);
 

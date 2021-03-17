@@ -6,17 +6,20 @@ use crate::hash::{Hash, HASH_LENGTH};
 use crate::node::{Node, NodeID};
 
 #[allow(unused)]
+#[derive(Debug)]
 pub struct KMessage {
-    transaction_id: Vec<u8>,
-    request: KRequest,
+    pub transaction_id: Vec<u8>,
+    pub request: KRequest,
 }
 #[allow(unused)]
+#[derive(Debug)]
 pub enum KRequest {
     Query(QueryBody),
     Response(ResponseBody),
     Error((u32, String)),
 }
 #[allow(unused)]
+#[derive(Debug)]
 pub enum QueryBody {
     Ping(QPing),
     FindNode(QFindNode),
@@ -25,6 +28,7 @@ pub enum QueryBody {
 }
 
 #[allow(unused)]
+#[derive(Debug)]
 pub enum ResponseBody {
     Ping(RPing),
     FindNode(RFindNode),
@@ -33,6 +37,7 @@ pub enum ResponseBody {
 }
 
 #[allow(unused)]
+#[derive(Debug)]
 pub struct QPing {
     pub id: NodeID,
 }
@@ -40,24 +45,28 @@ pub struct QPing {
 pub type RPing = QPing;
 
 #[allow(unused)]
+#[derive(Debug)]
 pub struct QFindNode {
     pub id: NodeID,
     pub target: NodeID,
 }
 
 #[allow(unused)]
+#[derive(Debug)]
 pub struct RFindNode {
     pub id: NodeID,
     pub nodes: Vec<Node>,
 }
 
 #[allow(unused)]
+#[derive(Debug)]
 pub struct QGetPeers {
     pub id: NodeID,
     pub info_hash: Hash,
 }
 
 #[allow(unused)]
+#[derive(Debug)]
 pub struct RGetPeers {
     pub id: NodeID,
     pub token: Vec<u8>,
@@ -66,6 +75,7 @@ pub struct RGetPeers {
 }
 
 #[allow(unused)]
+#[derive(Debug)]
 pub struct QAnnouncePeer {
     pub id: NodeID,
     pub info_hash: Hash,
@@ -75,7 +85,9 @@ pub struct QAnnouncePeer {
 }
 
 pub type RAnonnouncePeer = QPing;
+
 #[allow(unused)]
+#[derive(Debug)]
 pub struct Query {
     y: Vec<u8>,
 }
