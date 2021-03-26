@@ -71,7 +71,7 @@ pub struct RGetPeers {
     pub id: NodeID,
     pub token: Vec<u8>,
     pub peers: Vec<SocketAddr>,
-    pub nodes: Vec<Node>,
+    pub nodes: Vec<Rc<Node>>,
 }
 
 #[allow(unused)]
@@ -79,8 +79,8 @@ pub struct RGetPeers {
 pub struct QAnnouncePeer {
     pub id: NodeID,
     pub info_hash: Hash,
-    pub implied_port: u32,
-    pub port: u32,
+    pub implied_port: i32,
+    pub port: u16,
     pub token: Vec<u8>,
 }
 
@@ -92,7 +92,7 @@ pub struct Query {
     y: Vec<u8>,
 }
 
-pub fn parse_message(src: BData) -> Option<KMessage> {
+pub fn decode_message(src: BData) -> Option<KMessage> {
     if let BData::Dict(dict) = src {
         let dict = Rc::clone(&dict);
         let transaction_id = dict
@@ -107,16 +107,16 @@ pub fn parse_message(src: BData) -> Option<KMessage> {
             if y.len() == 1 {
                 let request = match y[0] {
                     b'e' => {
-                        let (no, msg) = parse_error(dict).expect("no data");
+                        let (no, msg) = decode_error(dict).expect("no data");
                         KRequest::Error((no, msg))
                     }
                     b'q' => {
-                        let body = parse_query(dict).expect("no data");
+                        let body = decode_query(dict).expect("no data");
                         KRequest::Query(body)
                     }
 
                     b'r' => {
-                        let body = parse_response(dict).expect("no data");
+                        let body = decode_response(dict).expect("no data");
                         KRequest::Response(body)
                     }
                     _ => panic!("bad request"),
@@ -132,17 +132,15 @@ pub fn parse_message(src: BData) -> Option<KMessage> {
     panic!("source data error")
 }
 
-pub fn parse_error(dict: Rc<BTreeMap<String, BData>>) -> Option<(u32, String)> {
-    return Some((32, "STR".to_string()));
+fn decode_error(_dict: Rc<BTreeMap<String, BData>>) -> Option<(u32, String)> {
+    todo!("decode error message data")
 }
 
-pub fn parse_response(dict: Rc<BTreeMap<String, BData>>) -> Option<ResponseBody> {
-    Some(ResponseBody::Ping(RPing {
-        id: crate::hash::Hash::rand(),
-    }))
+fn decode_response(_dict: Rc<BTreeMap<String, BData>>) -> Option<ResponseBody> {
+    todo!("decode response message data")
 }
 
-pub fn parse_query(dict: Rc<BTreeMap<String, BData>>) -> Option<QueryBody> {
+fn decode_query(dict: Rc<BTreeMap<String, BData>>) -> Option<QueryBody> {
     if let Some(BData::BString(q)) = dict.get("q") {
         let s = String::from_utf8(q.clone()).expect("string parse error");
 
@@ -184,11 +182,24 @@ pub fn parse_query(dict: Rc<BTreeMap<String, BData>>) -> Option<QueryBody> {
                 }
 
                 "get_peers" => {
-                    let info_hash = id.clone();
+                    let info = addition
+                        .get("info_hash")
+                        .and_then(|h| match h {
+                            BData::BString(s) => Some(s.clone()),
+                            BData::Number(_) | BData::List(_) | BData::Dict(_) => None,
+                        })
+                        .expect("no info_hash");
+
+                    // todo: info length != 20, 则应视为异常数据
+                    let mut arr = [0u8; HASH_LENGTH];
+                    arr.clone_from_slice(&info.as_slice()[..HASH_LENGTH]);
+                    let info_hash = Hash::wrap(arr);
+
                     let body = QGetPeers { id, info_hash };
                     return Some(QueryBody::GetPeers(body));
                 }
                 "announce_peers" => {
+                    // todo: implement read params
                     let info_hash = id.clone();
                     let token = id.clone().raw_id();
                     let body = QAnnouncePeer {
@@ -205,4 +216,142 @@ pub fn parse_query(dict: Rc<BTreeMap<String, BData>>) -> Option<QueryBody> {
         }
     }
     return None;
+}
+
+#[allow(unused)]
+fn encode_message(message: KMessage) -> BData {
+    let mut map = BTreeMap::new();
+
+    // transaction id
+    map.insert("t".to_string(), BData::BString(message.transaction_id));
+
+    // y
+    match message.request {
+        KRequest::Query(body) => {
+            map.insert("y".to_string(), BData::BString("q".as_bytes().to_vec()));
+            map.append(&mut encode_query(body));
+        }
+        KRequest::Response(body) => {
+            map.insert("y".to_string(), BData::BString("r".as_bytes().to_vec()));
+            map.append(&mut encode_response(body));
+        }
+        KRequest::Error(body) => {
+            map.insert("y".to_string(), BData::BString("e".as_bytes().to_vec()));
+        }
+    }
+
+    BData::Dict(Rc::new(map))
+}
+
+#[allow(unused)]
+fn encode_query(query: QueryBody) -> BTreeMap<String, BData> {
+    let mut map = BTreeMap::new();
+
+    match query {
+        QueryBody::Ping(body) => {
+            map.insert("q".to_string(), BData::BString("ping".as_bytes().to_vec()));
+
+            // encode body
+            let mut a = BTreeMap::new();
+            a.insert("id".to_string(), BData::BString(body.id.raw_id()));
+
+            map.insert("a".to_string(), BData::Dict(Rc::new(a)));
+        }
+        QueryBody::FindNode(body) => {
+            map.insert("q".to_string(), BData::BString("ping".as_bytes().to_vec()));
+
+            // encode body
+            let mut a = BTreeMap::new();
+            a.insert("id".to_string(), BData::BString(body.id.raw_id()));
+            a.insert("target".to_string(), BData::BString(body.target.raw_id()));
+
+            map.insert("a".to_string(), BData::Dict(Rc::new(a)));
+        }
+        QueryBody::GetPeers(body) => {
+            map.insert("q".to_string(), BData::BString("ping".as_bytes().to_vec()));
+
+            // encode body
+            let mut a = BTreeMap::new();
+            a.insert("id".to_string(), BData::BString(body.id.raw_id()));
+            a.insert(
+                "info_hash".to_string(),
+                BData::BString(body.info_hash.raw_id()),
+            );
+
+            map.insert("a".to_string(), BData::Dict(Rc::new(a)));
+        }
+        QueryBody::AnnouncePeer(body) => {
+            map.insert("q".to_string(), BData::BString("ping".as_bytes().to_vec()));
+
+            // encode body
+            let mut a = BTreeMap::new();
+            a.insert("id".to_string(), BData::BString(body.id.raw_id()));
+            a.insert(
+                "implied_port".to_string(),
+                BData::Number(body.implied_port.into()),
+            );
+            a.insert(
+                "info_hash".to_string(),
+                BData::BString(body.info_hash.raw_id()),
+            );
+            a.insert("port".to_string(), BData::Number(body.port.into()));
+            a.insert("token".to_string(), BData::BString(body.token));
+
+            map.insert("a".to_string(), BData::Dict(Rc::new(a)));
+        }
+    }
+
+    map
+}
+
+#[allow(unused)]
+fn encode_response(body: ResponseBody) -> BTreeMap<String, BData> {
+    let mut map = BTreeMap::new();
+
+    match body {
+        ResponseBody::Ping(body) => {
+            // encode body
+            let mut r = BTreeMap::new();
+            r.insert("id".to_string(), BData::BString(body.id.raw_id()));
+
+            map.insert("r".to_string(), BData::Dict(Rc::new(r)));
+        }
+
+        ResponseBody::FindNode(body) => {
+            // encode body
+            let mut r = BTreeMap::new();
+            r.insert("id".to_string(), BData::BString(body.id.raw_id()));
+            let mut v = vec![];
+            body.nodes.iter().for_each(|node| {
+                v.append(&mut node.compacted_info());
+            });
+            r.insert("nodes".to_string(), BData::BString(v));
+
+            map.insert("r".to_string(), BData::Dict(Rc::new(r)));
+        }
+
+        ResponseBody::GetPeers(body) => {
+            // encode body
+            let mut r = BTreeMap::new();
+            r.insert("id".to_string(), BData::BString(body.id.raw_id()));
+            r.insert("token".to_string(), BData::BString(body.token));
+            let mut info = vec![];
+            body.nodes.iter().for_each(|node| {
+                info.append(&mut node.compacted_info());
+            });
+            r.insert("nodes".to_string(), BData::BString(info));
+
+            map.insert("r".to_string(), BData::Dict(Rc::new(r)));
+        }
+
+        ResponseBody::AnnouncePeer(body) => {
+            // encode body
+            let mut r = BTreeMap::new();
+            r.insert("id".to_string(), BData::BString(body.id.raw_id()));
+
+            map.insert("r".to_string(), BData::Dict(Rc::new(r)));
+        }
+    }
+
+    map
 }
