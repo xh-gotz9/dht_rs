@@ -168,7 +168,7 @@ pub fn parse_query(dict: Rc<BTreeMap<String, BData>>) -> Option<QueryBody> {
                 }
                 "find_node" => {
                     let t = addition
-                        .get("id")
+                        .get("target")
                         .and_then(|s| match s {
                             BData::Number(_) | BData::List(_) | BData::Dict(_) => None,
                             BData::BString(v) => Some(v.clone()),
