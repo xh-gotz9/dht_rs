@@ -26,6 +26,25 @@ impl Node {
             .and_then(|x| Ok(x.as_secs() < 60 * 15))
             .unwrap_or(false)
     }
+
+    pub fn compacted_info(&self) -> Vec<u8> {
+        let mut v = vec![];
+
+        v.append(&mut self.id.raw_id());
+
+        match self.addr.ip() {
+            std::net::IpAddr::V4(v4) => {
+                v.append(&mut v4.octets().to_vec());
+            }
+            std::net::IpAddr::V6(_) => todo!("v6 support"),
+        }
+
+        let port = self.addr.port();
+        v.push((port >> 8) as u8);
+        v.push(port as u8);
+
+        v
+    }
 }
 
 pub mod id {
