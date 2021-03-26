@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, net::SocketAddr, rc::Rc};
+use std::{collections::BTreeMap, fmt::Debug, net::SocketAddr, rc::Rc};
 
 use fraux_rs::BData;
 
@@ -6,11 +6,20 @@ use crate::hash::{Hash, HASH_LENGTH};
 use crate::node::{Node, NodeID};
 
 #[allow(unused)]
-#[derive(Debug)]
 pub struct KMessage {
     pub transaction_id: Vec<u8>,
     pub request: KRequest,
 }
+
+impl Debug for KMessage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("KMessage")
+            .field("transaction_id", &hex::encode_upper(&self.transaction_id))
+            .field("request", &self.request)
+            .finish()
+    }
+}
+
 #[allow(unused)]
 #[derive(Debug)]
 pub enum KRequest {
