@@ -1,7 +1,7 @@
 use crate::node::{self, Node, NodeID};
 use std::fmt::{self, Result};
 use std::rc::Rc;
-use std::{borrow::Borrow, cell::RefCell};
+use std::cell::RefCell;
 
 /// 一个 Bucket 中仅可容纳 8 个 Node
 const BUCKET_MAX_SIZE: usize = 8;
