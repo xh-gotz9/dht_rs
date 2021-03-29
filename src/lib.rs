@@ -5,7 +5,7 @@ pub mod node;
 
 use crate::krpc::*;
 use crate::node::Node;
-use std::{cell::RefCell, rc::Rc};
+use std::sync::{Arc, Mutex};
 use std::{net::SocketAddr, time::SystemTime};
 
 use bucket::Bucket;
@@ -15,45 +15,45 @@ use node::NodeID;
 
 pub struct DHTTable {
     id: NodeID,
-    buckets: Option<Rc<RefCell<Bucket>>>,
+    buckets: Option<Arc<Mutex<Bucket>>>,
 }
 
 impl DHTTable {
     #[allow(unused)]
-    fn new() -> Self {
+    pub fn new() -> Self {
         let id = Hash::wrap([0; HASH_LENGTH]);
         Self {
             id: NodeID::rand(),
-            buckets: Some(Rc::new(RefCell::new(Bucket::new(id, None)))),
+            buckets: Some(Arc::new(Mutex::new(Bucket::new(id, None)))),
         }
     }
 
     /// 根据提供的 id 找到对应的 bucket
     #[allow(unused)]
-    fn search_bucket(&self, id: &NodeID) -> Option<Rc<RefCell<Bucket>>> {
-        let mut bu = self.buckets.as_ref().map(Rc::clone);
+    fn search_bucket(&self, id: &NodeID) -> Option<Arc<Mutex<Bucket>>> {
+        let mut bu = self.buckets.as_ref().map(Arc::clone);
 
         while let Some(b) = bu.as_ref() {
-            let rc = Rc::clone(b);
-            let v = rc.as_ref().borrow();
+            let rc = Arc::clone(b);
+            let v = rc.as_ref().lock().expect("multithread lock error");
 
             if node::id::cmp(v.node_id(), id) <= 0 {
-                return Some(Rc::clone(&rc));
+                return Some(Arc::clone(&rc));
             }
 
             bu = rc
-                .as_ref()
-                .borrow()
+                .lock()
+                .expect("msg")
                 .next_bucket()
                 .as_ref()
-                .and_then(|rc| Some(Rc::clone(rc)));
+                .and_then(|rc| Some(Arc::clone(rc)));
         }
 
         None
     }
 
     #[allow(unused)]
-    fn handle_message_bytes(&self, addr: SocketAddr, src: Vec<u8>) {
+    pub fn handle_message_bytes(&self, addr: SocketAddr, src: Vec<u8>) {
         let msg = fraux_rs::parse(src).expect("bencode 解析失败");
         let message = krpc::decode_message(msg).expect("krpc 解析失败");
         self.handle_message(addr, message);
@@ -93,7 +93,7 @@ impl DHTTable {
     fn handle_q_ping(&self, query: &QPing) -> Option<ResponseBody> {
         let bucket_ref = self.search_bucket(&query.id);
         if let Some(b) = bucket_ref {
-            let mut b = b.as_ref().borrow_mut();
+            let mut b = b.as_ref().lock().expect("multithread lock error");
 
             if let Some(node) = b.find_node(&query.id) {
                 // todo: update node life info
@@ -115,10 +115,11 @@ impl DHTTable {
     /// 处理 krpc 的 ping 响应
     #[allow(unused)]
     fn handle_r_ping(&self, response: &RPing) {
-        if let Some(b) = self
-            .search_bucket(&response.id)
-            .and_then(|b| b.as_ref().borrow().find_node(&response.id))
-        {
+        if let Some(b) = self.search_bucket(&response.id).and_then(|b| {
+            b.lock()
+                .expect("multithread lock error")
+                .find_node(&response.id)
+        }) {
             todo!("update node life info")
         }
     }
@@ -130,7 +131,7 @@ impl DHTTable {
 
         let b = self.search_bucket(id);
         if let Some(cell) = b {
-            let bu = cell.as_ref().borrow();
+            let bu = cell.lock().expect("multithread lock error");
             if (node::id::cmp(id, bu.node_id()) >= 0) {
                 // process query
                 let mut response;

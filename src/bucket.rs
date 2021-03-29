@@ -1,16 +1,16 @@
 use crate::node::{self, Node, NodeID};
-use std::fmt::{self, Result};
-use std::rc::Rc;
-use std::cell::RefCell;
+use std::{
+    fmt::{self, Result},
+    sync::{Arc, Mutex},
+};
 
 /// 一个 Bucket 中仅可容纳 8 个 Node
 const BUCKET_MAX_SIZE: usize = 8;
 
-#[derive(Eq, PartialEq)]
 pub struct Bucket {
     id: NodeID,
-    next: Option<Rc<RefCell<Bucket>>>,
-    nodes: Option<Vec<Rc<Node>>>,
+    next: Option<Arc<Mutex<Bucket>>>,
+    nodes: Option<Vec<Arc<Node>>>,
 }
 
 impl std::fmt::Debug for Bucket {
@@ -24,7 +24,7 @@ impl std::fmt::Debug for Bucket {
 
 impl Bucket {
     #[allow(unused)]
-    pub fn new(id: NodeID, next: Option<Rc<RefCell<Bucket>>>) -> Bucket {
+    pub fn new(id: NodeID, next: Option<Arc<Mutex<Bucket>>>) -> Bucket {
         Bucket {
             id: id,
             next: next,
@@ -41,7 +41,10 @@ impl Bucket {
         let j = self
             .next
             .as_ref()
-            .and_then(|x| node::id::lowest_bit(&x.as_ref().borrow().id).and_then(|x| Some(x + 1)))
+            .and_then(|x| {
+                node::id::lowest_bit(&x.as_ref().lock().expect("multithread lock error").id)
+            })
+            .and_then(|x| Some(x + 1))
             .unwrap_or(1);
         let pos = usize::max(i, j);
 
@@ -51,7 +54,7 @@ impl Bucket {
         // 新 bucket 放于最后
         let mut new_bucket = Bucket::new(
             NodeID::wrap(arr),
-            self.next.as_ref().and_then(|x| Some(Rc::clone(x))),
+            self.next.as_ref().and_then(|x| Some(Arc::clone(x))),
         );
 
         let self_nodes = self.nodes.as_mut().expect("转移 node");
@@ -65,20 +68,20 @@ impl Bucket {
             }
         }
 
-        self.next = Some(Rc::new(RefCell::new(new_bucket)));
+        self.next = Some(Arc::new(Mutex::new(new_bucket)));
     }
 
     #[allow(unused)]
     pub fn insert_node(&mut self, node: Node) {
         // TODO 遍历查找 bucket, 移除 _insert_node 中的递归调用
-        self._insert_node(Rc::new(node))
+        self._insert_node(Arc::new(node))
     }
 
-    fn _insert_node(&mut self, node: Rc<Node>) {
+    fn _insert_node(&mut self, node: Arc<Node>) {
         if let Some(v) = &self.next {
-            let nb = Rc::clone(v);
-            if node::id::cmp(&node.id, &nb.as_ref().borrow().id) <= 0 {
-                nb.borrow_mut()._insert_node(node);
+            let mut b = v.lock().expect("multithread lock error");
+            if node::id::cmp(&node.id, &b.id) <= 0 {
+                b._insert_node(node);
             }
             return;
         }
@@ -97,8 +100,9 @@ impl Bucket {
                     } else {
                         self.next
                             .as_ref()
-                            .expect("slite failed")
-                            .borrow_mut()
+                            .expect("splite failed")
+                            .lock()
+                            .expect("multithread lock error")
                             ._insert_node(node);
                     }
                 } else {
@@ -115,15 +119,15 @@ impl Bucket {
         &self.id
     }
 
-    pub fn next_bucket(&self) -> Option<Rc<RefCell<Bucket>>> {
-        self.next.as_ref().and_then(|rc| Some(Rc::clone(rc)))
+    pub fn next_bucket(&self) -> Option<Arc<Mutex<Bucket>>> {
+        self.next.as_ref().and_then(|rc| Some(Arc::clone(rc)))
     }
 
-    pub fn find_node(&self, id: &NodeID) -> Option<Rc<Node>> {
+    pub fn find_node(&self, id: &NodeID) -> Option<Arc<Node>> {
         if let Some(v) = &self.nodes {
             for node in v {
                 if node::id::cmp(id, &node.id) == 0 {
-                    return Some(Rc::clone(&node));
+                    return Some(Arc::clone(node));
                 }
             }
         }
