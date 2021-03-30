@@ -228,7 +228,7 @@ fn decode_query(dict: Rc<BTreeMap<String, BData>>) -> Option<QueryBody> {
 }
 
 #[allow(unused)]
-fn encode_message(message: KMessage) -> BData {
+pub fn encode_message(message: KMessage) -> BData {
     let mut map = BTreeMap::new();
 
     // transaction id
