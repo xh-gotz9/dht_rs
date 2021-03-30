@@ -61,7 +61,7 @@ pub mod id {
     #[allow(unused)]
     pub fn cmp(id1: &NodeID, id2: &NodeID) -> i32 {
         let mut count = 0;
-        while id1.val[count] == id2.val[count] {
+        while count < 20 && id1.val[count] == id2.val[count] {
             count += 1;
         }
         if count >= 20 {
