@@ -13,17 +13,23 @@ use hash::{Hash, HASH_LENGTH};
 use krpc::{KMessage, QAnnouncePeer, QFindNode, QGetPeers, QPing};
 use node::NodeID;
 
-pub struct DHTTable {
+pub struct DHTTable<T>
+{
     id: NodeID,
+    send: T,
     buckets: Option<Arc<Mutex<Bucket>>>,
 }
 
-impl DHTTable {
+impl<T> DHTTable<T>
+where
+    T: Fn(SocketAddr, KMessage),
+{
     #[allow(unused)]
-    pub fn new() -> Self {
+    pub fn new(send: T) -> Self {
         let id = Hash::wrap([0; HASH_LENGTH]);
         Self {
             id: NodeID::rand(),
+            send,
             buckets: Some(Arc::new(Mutex::new(Bucket::new(id, None)))),
         }
     }
@@ -72,7 +78,7 @@ impl DHTTable {
 
                 if let Some(res) = resp {
                     message.request = KRequest::Response(res);
-                    self.send_response(addr, &message);
+                    self.send_response(addr, message);
                 }
             }
             krpc::KRequest::Response(response) => match response {
@@ -83,9 +89,12 @@ impl DHTTable {
     }
 
     #[allow(unused)]
-    fn send_response(&self, addr: SocketAddr, body: &KMessage) {
+    fn send_response(&self, addr: SocketAddr, body: KMessage) {
         // todo: implement send message
-        println!("address: {:?}, content: {:?}", addr, body);
+
+        println!("address: {:?}, content: {:?}", &addr, &body);
+
+        (self.send)(addr, body);
     }
 
     /// 处理 krpc 的 ping 请求
@@ -196,7 +205,8 @@ mod test {
 
     #[test]
     fn handle_query_ping() {
-        let table = DHTTable::new();
+        let table =
+            DHTTable::new(|addr, message| println!("addr: {:?}, message: {:?}", addr, message));
 
         let ping = QPing { id: NodeID::rand() };
 
@@ -213,7 +223,7 @@ mod test {
 
     #[test]
     fn handle_query_find_node() {
-        let table = DHTTable::new();
+        let table = DHTTable::new(|addr, message| println!("addr: {:?}, message: {:?}", addr, message));
 
         let body = QFindNode {
             id: NodeID::rand(),
