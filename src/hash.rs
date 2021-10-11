@@ -3,6 +3,14 @@ use std::fmt::{self, Debug, Result};
 
 pub const HASH_LENGTH: usize = 20;
 
+pub const MIN_HASH: Hash = Hash {
+    val: [u8::MIN; HASH_LENGTH],
+};
+
+pub const MAX_HASH: Hash = Hash {
+    val: [u8::MAX; HASH_LENGTH],
+};
+
 #[derive(Eq, PartialEq)]
 pub struct Hash {
     pub val: [u8; HASH_LENGTH],
