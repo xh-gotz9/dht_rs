@@ -1,5 +1,8 @@
 use rand::prelude::*;
-use std::fmt::{self, Debug, Result};
+use std::{
+    cmp::Ordering,
+    fmt::{self, Debug, Result},
+};
 
 pub const HASH_LENGTH: usize = 20;
 
@@ -11,7 +14,7 @@ pub const MAX_HASH: Hash = Hash {
     val: [u8::MAX; HASH_LENGTH],
 };
 
-#[derive(Eq, PartialEq)]
+#[derive(Eq, PartialEq, PartialOrd)]
 pub struct Hash {
     pub val: [u8; HASH_LENGTH],
 }
@@ -65,4 +68,55 @@ impl Hash {
     pub fn raw_id(&self) -> Vec<u8> {
         self.val.to_vec()
     }
+}
+
+impl Ord for Hash {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        let mut count = 0;
+        while count < 20 && self.val[count] == other.val[count] {
+            count += 1;
+        }
+
+        if count >= 20 {
+            return Ordering::Equal;
+        } else {
+            return if self.val[count] > other.val[count] {
+                Ordering::Greater
+            } else {
+                Ordering::Less
+            };
+        }
+    }
+}
+
+pub fn mid(id1: &Hash, id2: &Hash) -> Hash {
+    let mut node = Hash::new();
+    let mut b: u16 = 0;
+    for i in (0..HASH_LENGTH).rev() {
+        let mid = id1.val[i] as u16 + id2.val[i] as u16 + b;
+        node.val[i] = mid as u8;
+        b = mid >> 8;
+    }
+    for i in 0..HASH_LENGTH {
+        let tmp = node.val[i] as u16 + (b << 8);
+        node.val[i] = (tmp / 2) as u8;
+        b = tmp & 1;
+    }
+    return node;
+}
+
+pub fn lowest_bit(node: &Hash) -> Option<usize> {
+    let mut ret: Option<usize> = None;
+    for i in (0..HASH_LENGTH).rev() {
+        let v = node.val[i];
+        let mut f: u8 = 1;
+        for j in (0..8).rev() {
+            if v & f != 0 {
+                ret = Some(i * 8 + j);
+                break;
+            }
+            f <<= 1;
+        }
+    }
+    return ret;
 }
