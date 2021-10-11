@@ -16,7 +16,7 @@ pub const MAX_HASH: Hash = Hash {
 
 #[derive(Eq, PartialEq, PartialOrd)]
 pub struct Hash {
-    pub val: [u8; HASH_LENGTH],
+    val: [u8; HASH_LENGTH],
 }
 
 impl Clone for Hash {
