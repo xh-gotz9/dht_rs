@@ -1,3 +1,6 @@
+use dht_rs::node::Node;
+
 fn main() {
-    println!("Hello!");
+    let node = Node::random();
+    println!("{:?}", node);
 }
