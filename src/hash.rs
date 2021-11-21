@@ -11,6 +11,14 @@ pub struct Hash {
     val: [u8; HASH_LENGTH],
 }
 
+pub const MIN_HASH: Hash = Hash {
+    val: [u8::MIN; HASH_LENGTH],
+};
+
+pub const MAX_HASH: Hash = Hash {
+    val: [u8::MAX; HASH_LENGTH],
+};
+
 impl Hash {
     pub fn new() -> Hash {
         let data: [u8; HASH_LENGTH] = [0; HASH_LENGTH];
