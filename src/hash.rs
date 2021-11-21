@@ -6,7 +6,7 @@ use std::{
 
 pub const HASH_LENGTH: usize = 20;
 
-#[derive(Eq, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Eq, PartialEq, PartialOrd)]
 pub struct Hash {
     val: [u8; HASH_LENGTH],
 }
@@ -29,14 +29,6 @@ impl Hash {
             data[i] = v;
         }
         return Hash { val: data };
-    }
-}
-
-impl Clone for Hash {
-    fn clone(&self) -> Self {
-        Hash {
-            val: self.val.clone(),
-        }
     }
 }
 
