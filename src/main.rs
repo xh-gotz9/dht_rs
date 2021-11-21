@@ -1,7 +1,5 @@
-use crate::hash::Hash;
-
-mod hash;
+use dht_rs::node::Node;
 
 fn main() {
-    println!("{:?}", Hash::random());
+    println!("{:?}", Node::random());
 }
