@@ -7,6 +7,7 @@ use crate::{
 
 type NodeContainer = BTreeMap<Hash, Node>;
 
+/// hold nodes which id value in range of [range_from, range_to)
 pub struct Bucket {
     range_from: Hash,
     range_to: Hash,
@@ -49,7 +50,7 @@ impl Bucket {
         let nodes = std::mem::replace(&mut self.nodes, RefCell::new(BTreeMap::new())).into_inner();
 
         for (key, val) in nodes.into_iter() {
-            if key > m {
+            if key >= m {
                 b.insert(val);
             } else {
                 self.insert(val);
