@@ -23,6 +23,18 @@ impl Bucket {
         }
     }
 
+    pub fn range_from(&self) -> Hash {
+        self.range_from
+    }
+
+    pub fn range_to(&self) -> Hash {
+        self.range_to
+    }
+
+    pub fn nodes<'a>(&'a self) -> &'a RefCell<NodeContainer> {
+        &self.nodes
+    }
+
     pub fn size(&self) -> usize {
         self.nodes.borrow().len()
     }

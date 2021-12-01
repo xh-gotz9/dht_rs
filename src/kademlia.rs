@@ -53,3 +53,48 @@ impl KademliaTable {
         None
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        hash::{self, MAX_HASH, MIN_HASH},
+        node::Node,
+    };
+    use std::rc::Rc;
+
+    use super::KademliaTable;
+
+    #[test]
+    fn auto_splite_test() {
+        let table = KademliaTable::new();
+        let mut v = vec![];
+        for _i in 0..9 {
+            let n = Node::random();
+            v.push(n.id);
+
+            table.insert_node(n);
+        }
+
+        // check bucket splited
+        let b = Rc::clone(table.buckets.borrow().first().expect("buckets error"));
+        let m = hash::mid(&MIN_HASH, &MAX_HASH);
+        assert_eq!(b.as_ref().borrow().range_to(), m);
+
+        // check splite correctly
+        table.buckets.borrow().iter().for_each(|b| {
+            let b = Rc::clone(b);
+
+            let b_ref = b.as_ref().borrow();
+            let nodes = b_ref.nodes();
+
+            assert!(nodes.borrow().keys().all(|e| b_ref.node_in_range(e)));
+
+            println!(
+                "range from {:?} to {:?}: {:?}",
+                b_ref.range_from(),
+                b_ref.range_to(),
+                nodes.borrow()
+            )
+        });
+    }
+}
