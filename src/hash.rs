@@ -40,6 +40,22 @@ impl Hash {
     }
 }
 
+pub fn mid(id1: &Hash, id2: &Hash) -> Hash {
+    let mut node = Hash::new();
+    let mut b: u16 = 0;
+    for i in (0..HASH_LENGTH).rev() {
+        let mid = id1.val[i] as u16 + id2.val[i] as u16 + b;
+        node.val[i] = mid as u8;
+        b = mid >> 8;
+    }
+    for i in 0..HASH_LENGTH {
+        let tmp = node.val[i] as u16 + (b << 8);
+        node.val[i] = (tmp / 2) as u8;
+        b = tmp & 1;
+    }
+    return node;
+}
+
 impl ToString for Hash {
     fn to_string(&self) -> std::string::String {
         hex::encode(self.val)
