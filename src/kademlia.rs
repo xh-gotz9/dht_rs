@@ -45,7 +45,7 @@ impl KademliaTable {
         for (i, ele) in self.buckets.borrow().iter().enumerate() {
             let b = Rc::clone(&ele);
 
-            if b.as_ref().borrow().node_in_range(id) {
+            if b.as_ref().borrow().node_in_range(&id) {
                 return Some((i, b));
             }
         }

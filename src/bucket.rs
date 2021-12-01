@@ -27,8 +27,8 @@ impl Bucket {
         self.nodes.borrow().len()
     }
 
-    pub fn node_in_range(&self, id: NodeID) -> bool {
-        return id >= self.range_from && id < self.range_to;
+    pub fn node_in_range(&self, id: &NodeID) -> bool {
+        return id >= &self.range_from && id < &self.range_to;
     }
 
     /// insert node into bucket
