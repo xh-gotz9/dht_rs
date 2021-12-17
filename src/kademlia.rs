@@ -69,13 +69,13 @@ const BUCKET_MAX_CAPACITY: usize = 8;
 type BucketRef = Rc<RefCell<Bucket>>;
 
 pub struct KademliaTable {
-    buckets: RefCell<Vec<BucketRef>>,
+    header: RefCell<Vec<BucketRef>>,
 }
 
 impl KademliaTable {
     pub fn new() -> KademliaTable {
         return KademliaTable {
-            buckets: RefCell::new(vec![Rc::new(RefCell::new(Bucket::new(MIN_HASH, MAX_HASH)))]),
+            header: RefCell::new(vec![Rc::new(RefCell::new(Bucket::new(MIN_HASH, MAX_HASH)))]),
         };
     }
 
@@ -90,7 +90,7 @@ impl KademliaTable {
             if target.size() > BUCKET_MAX_CAPACITY {
                 let b = target.splite();
 
-                self.buckets
+                self.header
                     .borrow_mut()
                     .insert(i + 1, Rc::new(RefCell::new(b)));
             }
@@ -100,7 +100,7 @@ impl KademliaTable {
     }
 
     fn find_bucket_to_insert(&self, id: NodeID) -> Option<(usize, BucketRef)> {
-        for (i, ele) in self.buckets.borrow().iter().enumerate() {
+        for (i, ele) in self.header.borrow().iter().enumerate() {
             let b = Rc::clone(&ele);
 
             if b.as_ref().borrow().node_in_range(&id) {
@@ -134,12 +134,12 @@ mod tests {
         }
 
         // check bucket splited
-        let b = Rc::clone(table.buckets.borrow().first().expect("buckets error"));
+        let b = Rc::clone(table.header.borrow().first().expect("buckets error"));
         let m = hash::mid(&MIN_HASH, &MAX_HASH);
         assert_eq!(b.as_ref().borrow().range_to, m);
 
         // check splite correctly
-        table.buckets.borrow().iter().for_each(|b| {
+        table.header.borrow().iter().for_each(|b| {
             let b = Rc::clone(b);
 
             let b_ref = b.as_ref().borrow();
