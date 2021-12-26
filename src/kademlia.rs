@@ -77,65 +77,135 @@ impl Bucket {
 
 const BUCKET_MAX_CAPACITY: usize = 8;
 
-type BucketRef = Rc<RefCell<Bucket>>;
+struct Index {
+    key: NodeID,
+    left: KademliaNodeRef,
+    right: KademliaNodeRef,
+}
+
+enum NodeValue {
+    None,
+    Index(Index),
+    Bucket(Bucket),
+}
+
+type KademliaNodeRef = Rc<RefCell<KademliaNode>>;
+
+struct KademliaNode {
+    parent: Option<KademliaNodeRef>,
+    value: NodeValue,
+}
 
 pub struct KademliaTable {
-    header: RefCell<Vec<BucketRef>>,
+    root: KademliaNodeRef,
 }
 
 impl KademliaTable {
     pub fn new() -> KademliaTable {
         return KademliaTable {
-            header: RefCell::new(vec![Rc::new(RefCell::new(Bucket::new(MIN_HASH, MAX_HASH)))]),
+            root: Rc::new(RefCell::new(KademliaNode {
+                parent: None,
+                value: NodeValue::Bucket(Bucket::new(MIN_HASH, MAX_HASH)),
+            })),
         };
     }
 
-    /// # TODO
-    /// splite when bucket is full
-    pub fn insert_node(&self, node: Node) {
-        if let Some((i, b)) = self.find_bucket_to_insert(node.id) {
-            let mut target = b.as_ref().borrow_mut();
+    /// splite bucket when bucket is full
+    pub fn insert_node(&mut self, node: Node) {
+        let node_id = node.id;
+        let n = self.find_bucket_index(node_id);
 
-            target.insert(node);
+        let mut n_ref = n.as_ref().borrow_mut();
 
-            if target.size() > BUCKET_MAX_CAPACITY {
-                let (_h, b) = target.splite();
+        if let NodeValue::Bucket(b) = &mut n_ref.value {
+            b.insert(node);
 
-                self.header
-                    .borrow_mut()
-                    .insert(i + 1, Rc::new(RefCell::new(b)));
+            if let Some((k, b)) = b.try_splite() {
+                // create new index node
+                let mut right = KademliaNode {
+                    parent: None,
+                    value: NodeValue::Bucket(b),
+                };
+
+                let index_node = KademliaNode {
+                    parent: n_ref.parent.as_ref().map(|p| Rc::clone(p)),
+                    value: NodeValue::None,
+                };
+
+                let index_node_ref = Rc::new(RefCell::new(index_node));
+
+                right.parent = Some(Rc::clone(&index_node_ref));
+
+                let index_value = NodeValue::Index(Index {
+                    key: k,
+                    left: Rc::clone(&n),
+                    right: Rc::new(RefCell::new(right)),
+                });
+
+                index_node_ref.as_ref().borrow_mut().value = index_value;
+
+                // parent
+
+                if let Some(p) = &n_ref.parent {
+                    let p_rc = Rc::clone(p);
+                    let mut p_ref = p_rc.as_ref().borrow_mut();
+
+                    let v_ref = &mut p_ref.value;
+
+                    if let NodeValue::Index(i) = v_ref {
+                        if node_id > i.key {
+                            i.left = Rc::clone(&index_node_ref);
+                        } else {
+                            i.right = Rc::clone(&index_node_ref);
+                        }
+                    } else {
+                        panic!("kademlia table tree structure error")
+                    }
+                } else {
+                    // set root
+                    self.root = Rc::clone(&index_node_ref);
+                }
+
+                n_ref.parent = Some(index_node_ref);
             }
-        } else {
-            panic!("not found bucket of {:?}", node.id);
         }
     }
 
-    fn find_bucket_to_insert(&self, id: NodeID) -> Option<(usize, BucketRef)> {
-        for (i, ele) in self.header.borrow().iter().enumerate() {
-            let b = Rc::clone(&ele);
+    fn find_bucket_index(&self, id: NodeID) -> KademliaNodeRef {
+        let mut i = Rc::clone(&self.root);
 
-            if b.as_ref().borrow().node_in_range(&id) {
-                return Some((i, b));
-            }
+        loop {
+            let next = match &i.as_ref().borrow().value {
+                NodeValue::Bucket(_) | &NodeValue::None => break,
+                NodeValue::Index(index) => {
+                    if id <= index.key {
+                        Rc::clone(&index.left)
+                    } else {
+                        Rc::clone(&index.right)
+                    }
+                }
+            };
+
+            i = next;
         }
 
-        None
+        i
     }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::{
-        hash::{self, MAX_HASH, MIN_HASH},
+        hash::{mid, MAX_HASH, MIN_HASH},
+        kademlia::NodeValue,
         node::Node,
     };
-    use std::rc::Rc;
 
     use super::KademliaTable;
 
     #[test]
     fn auto_splite_test() {
-        let table = KademliaTable::new();
+        let mut table = KademliaTable::new();
         let mut v = vec![];
         for _i in 0..9 {
             let n = Node::random();
@@ -144,26 +214,15 @@ mod tests {
             table.insert_node(n);
         }
 
-        // check bucket splited
-        let b = Rc::clone(table.header.borrow().first().expect("buckets error"));
-        let m = hash::mid(&MIN_HASH, &MAX_HASH);
-        assert_eq!(b.as_ref().borrow().range_to, m);
+        let root = table.root.as_ref().borrow_mut();
 
-        // check splite correctly
-        table.header.borrow().iter().for_each(|b| {
-            let b = Rc::clone(b);
+        assert!(root.parent.is_none());
+        assert!(matches!(root.value, NodeValue::Index(_)));
 
-            let b_ref = b.as_ref().borrow();
-            let nodes = &b_ref.nodes;
+        if let NodeValue::Index(i) = &root.value {
+            assert_eq!(i.key, mid(&MAX_HASH, &MIN_HASH));
+        }
 
-            assert!(nodes.borrow().keys().all(|e| b_ref.node_in_range(e)));
-
-            println!(
-                "range from {:?} to {:?}: {:?}",
-                b_ref.range_from,
-                b_ref.range_to,
-                nodes.borrow()
-            )
-        });
+        // TODO: check bucket splited 
     }
 }
