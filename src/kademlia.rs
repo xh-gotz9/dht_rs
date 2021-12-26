@@ -40,7 +40,18 @@ impl Bucket {
         self.nodes.borrow_mut().insert(node.id, node);
     }
 
-    pub fn splite(&mut self) -> Bucket {
+    /// # Return
+    /// if bucket don't need to splite self, return None. Else it will return
+    /// a tuple of splite midlle NodeID and a new Bucket
+    pub fn try_splite(&mut self) -> Option<(NodeID, Bucket)> {
+        if self.size() > BUCKET_MAX_CAPACITY {
+            Some(self.splite())
+        } else {
+            None
+        }
+    }
+
+    fn splite(&mut self) -> (NodeID, Bucket) {
         let m = hash::mid(&self.range_from, &self.range_to);
 
         let b = Bucket::new(m, self.range_to);
@@ -60,7 +71,7 @@ impl Bucket {
 
         self.range_to = m;
 
-        b
+        (m, b)
     }
 }
 
@@ -88,7 +99,7 @@ impl KademliaTable {
             target.insert(node);
 
             if target.size() > BUCKET_MAX_CAPACITY {
-                let b = target.splite();
+                let (_h, b) = target.splite();
 
                 self.header
                     .borrow_mut()
