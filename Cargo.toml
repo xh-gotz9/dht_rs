@@ -9,3 +9,4 @@ edition = "2018"
 rand = "0.7.3"
 hex = "0.4.2"
 chrono = "0.4"
+fraux_rs = { path = "./libs/fraux_rs" }
