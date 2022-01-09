@@ -223,3 +223,17 @@ fn parse_query(dict: &BTreeMap<String, BData>) -> Result<QueryBody, String> {
 
     return Err("data struct error".to_string());
 }
+
+mod tests {
+
+    #[test]
+    fn parse_get_peers_query_test() {
+        let src = std::fs::read("./test/get_peers_query.dat")
+            .expect("load file get_peers test data failed");
+
+        let data = fraux_rs::parse(src).expect("test data parse error");
+        let message = super::parse_krpc_message(&data).expect("parse message failed");
+
+        println!("{:?}", message);
+    }
+}
