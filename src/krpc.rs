@@ -38,19 +38,9 @@ pub enum QueryBody {
 }
 
 #[derive(Debug)]
-pub enum ResponseBody {
-    Ping(RPing),
-    FindNode(RFindNode),
-    GetPeers(RGetPeers),
-    AnnouncePeer(RAnonnouncePeer),
-}
-
-#[derive(Debug)]
 pub struct QPing {
     pub id: NodeID,
 }
-
-pub type RPing = QPing;
 
 #[derive(Debug)]
 pub struct QFindNode {
@@ -59,23 +49,9 @@ pub struct QFindNode {
 }
 
 #[derive(Debug)]
-pub struct RFindNode {
-    pub id: NodeID,
-    pub nodes: Vec<Node>,
-}
-
-#[derive(Debug)]
 pub struct QGetPeers {
     pub id: NodeID,
     pub info_hash: Hash,
-}
-
-#[derive(Debug)]
-pub struct RGetPeers {
-    pub id: NodeID,
-    pub token: Vec<u8>,
-    pub peers: Vec<SocketAddr>,
-    pub nodes: Vec<Rc<Node>>,
 }
 
 #[derive(Debug)]
@@ -87,11 +63,17 @@ pub struct QAnnouncePeer {
     pub token: Hash,
 }
 
-pub type RAnonnouncePeer = QPing;
+#[derive(Debug)]
+pub enum Remote {
+    Nodes(Vec<Node>),
+    Peers(Vec<SocketAddr>),
+}
 
 #[derive(Debug)]
-pub struct Query {
-    y: Hash,
+pub struct ResponseBody {
+    pub id: NodeID,
+    pub token: Option<Vec<u8>>,
+    pub remote: Option<Remote>,
 }
 
 pub fn parse_krpc_message(src: &BData) -> Result<KMessage, String> {
