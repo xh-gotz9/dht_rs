@@ -21,22 +21,24 @@ pub const MAX_HASH: Hash = Hash {
 
 impl Hash {
     pub fn new() -> Hash {
-        let data: [u8; HASH_LENGTH] = [0; HASH_LENGTH];
-        return Hash { val: data };
+        let val: [u8; HASH_LENGTH] = [0; HASH_LENGTH];
+
+        Hash { val }
     }
 
     pub fn wrap(val: [u8; HASH_LENGTH]) -> Hash {
-        return Hash { val: val };
+        Hash { val }
     }
 
     pub fn random() -> Hash {
-        let mut data = [0; HASH_LENGTH];
+        let mut val = [0; HASH_LENGTH];
         let mut rng = rand::thread_rng();
-        for i in 0..HASH_LENGTH {
+        for i in 0..val.len() {
             let v: u8 = rng.gen();
-            data[i] = v;
+            val[i] = v;
         }
-        return Hash { val: data };
+
+        Hash { val }
     }
 }
 
