@@ -5,8 +5,8 @@ use crate::node::Node;
 use crate::node::NodeID;
 use core::fmt::Debug;
 use std::collections::BTreeMap;
-use std::net::SocketAddr;
-use std::rc::Rc;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::time::SystemTime;
 
 pub struct KMessage {
     pub transaction_id: Vec<u8>,
@@ -118,7 +118,70 @@ fn parse_error(dict: &BTreeMap<String, BData>) -> Result<(u32, String), String> 
 }
 
 fn parse_response(dict: &BTreeMap<String, BData>) -> Result<ResponseBody, String> {
-    todo!("decode response message data")
+    if let Some(BData::Dict(r)) = dict.get("r") {
+        let idv = r.get("id").and_then(|s| match s {
+            BData::Number(_) | BData::List(_) | BData::Dict(_) => None,
+            BData::BString(v) => Some(v.clone()),
+        });
+
+        if idv.is_none() {
+            return Err("id not found".to_string());
+        }
+
+        let mut id = [0u8; HASH_LENGTH];
+        id.clone_from_slice(&idv.expect("")[..HASH_LENGTH]);
+
+        let id = Hash::wrap(id);
+
+        let token = if let Some(BData::BString(t)) = r.get("token") {
+            Some(t.clone())
+        } else {
+            None
+        };
+
+        // peers or nodes info
+        let remote = if let Some(BData::List(l)) = r.get("values") {
+            let peers: Vec<SocketAddr> = l
+                .iter()
+                .filter_map(|e| match e {
+                    BData::BString(v) => Some(v.clone()),
+                    BData::Number(_) | BData::List(_) | BData::Dict(_) => None,
+                })
+                .map(|e| parse_compact_net_info(&e))
+                .filter_map(|e| match e {
+                    Ok(addr) => Some(addr),
+                    Err(_) => None,
+                })
+                .collect();
+
+            if peers.is_empty() {
+                None
+            } else {
+                Some(Remote::Peers(peers))
+            }
+        } else if let Some(BData::BString(v)) = r.get("nodes") {
+            let mut nodes = vec![];
+
+            let mut i: usize = 0;
+            while (v.len() - i) >= COMAPCT_NODE_LENGTH {
+                let node = parse_compact_node_info(&v[i..])?;
+                nodes.push(node);
+                i += COMAPCT_NODE_LENGTH;
+            }
+
+            if nodes.is_empty() {
+                None
+            } else {
+                Some(Remote::Nodes(nodes))
+            }
+        } else {
+            None
+        };
+
+        return Ok(ResponseBody { id, token, remote });
+    }
+
+    return Err("not found response body".to_string());
 }
 
 fn parse_query(dict: &BTreeMap<String, BData>) -> Result<QueryBody, String> {
@@ -204,6 +267,39 @@ fn parse_query(dict: &BTreeMap<String, BData>) -> Result<QueryBody, String> {
     }
 
     return Err("data struct error".to_string());
+}
+
+const NET_ADDRESS_LENGTH: usize = 6;
+
+const COMAPCT_NODE_LENGTH: usize = HASH_LENGTH + NET_ADDRESS_LENGTH;
+
+fn parse_compact_node_info(bytes: &[u8]) -> Result<Node, String> {
+    if bytes.len() < COMAPCT_NODE_LENGTH {
+        return Err("node info data not enough".to_string());
+    }
+
+    let mut v = [0u8; HASH_LENGTH];
+    v.clone_from_slice(&bytes[..HASH_LENGTH]);
+    let id = NodeID::wrap(v);
+
+    let addr = parse_compact_net_info(&bytes[HASH_LENGTH..HASH_LENGTH + NET_ADDRESS_LENGTH])?;
+
+    let node = Node::new(id, addr, SystemTime::now());
+
+    Ok(node)
+}
+
+fn parse_compact_net_info(bytes: &[u8]) -> Result<SocketAddr, String> {
+    if bytes.len() < 6 {
+        return Err("net info data not enough".to_string());
+    }
+
+    let addr = SocketAddr::new(
+        IpAddr::V4(Ipv4Addr::new(bytes[0], bytes[1], bytes[2], bytes[3])),
+        u16::from_be_bytes([bytes[4], bytes[5]]),
+    );
+
+    Ok(addr)
 }
 
 mod tests {
