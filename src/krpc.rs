@@ -325,4 +325,27 @@ mod tests {
 
         println!("{:?}", message);
     }
+
+    #[test]
+    fn parse_ping_query_test() {
+        let src = std::fs::read("./test/ping_query.dat")
+            .expect("load file ping test data failed");
+
+        let data = fraux_rs::parse(&src).expect("test data parse error");
+        let message = super::parse_krpc_message(&data).expect("parse message failed");
+
+        println!("{:?}", message);
+    }
+
+    #[test]
+    fn parse_ping_response_test() {
+        let src = std::fs::read("./test/ping_response.dat")
+            .expect("load file ping test data failed");
+
+        let data = fraux_rs::parse(&src).expect("test data parse error");
+        let message = super::parse_krpc_message(&data).expect("parse message failed");
+
+        println!("{:?}", message);
+    }
+        
 }
